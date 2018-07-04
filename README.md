@@ -1,3 +1,6 @@
+#Use of FloRa framweork
+This Framework for LoRa is used for faculty thesis. FloRa is downloaded from http://flora.aalto.fi/ . Few changes in modules are made to carry out needed simulation for thesis work by owner of this repository (miaoreskovic). 
+
 # FLoRa
 FLoRa (Framework for LoRa) is a simulation framework for carrying out end-to-end simulations for LoRa networks. 
 It is based on the [OMNeT++](https://omnetpp.org/) network simulator and uses components from the [INET framework](https://inet.omnetpp.org/) as well.
