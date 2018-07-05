@@ -32,11 +32,12 @@ class InterfaceToken;
 class INET_API DevAddr
 {
   private:
-    uint32 address;    // 4*8=48 bit address
+    //uint32 address;    // 4*8=48 bit address
     static unsigned int autoAddressCtr;    // global counter for generateAutoAddress()
     static bool simulationLifecycleListenerAdded;
 
   public:
+    uint32 address;
 
 #if OMNETPP_VERSION >= 0x500
     class SimulationLifecycleListener : public cISimulationLifecycleListener

@@ -94,6 +94,9 @@ void NetworkServerApp::finish()
         delete knownNodes[i].receivedSeqNumber;
         delete knownNodes[i].calculatedSNRmargin;
         recordScalar("Send ADR for node", knownNodes[i].numberOfSentADRPackets);
+        recordScalar("address", knownNodes[i].srcAddr.address);
+        recordScalar("numberOfReceivedPacketsPerNode", knownNodes[i].numberOfReceivedPacketsPerNode);
+
     }
     receivedRSSI.recordAs("receivedRSSI");
     recordScalar("totalReceivedPackets", totalReceivedPackets);
@@ -157,6 +160,7 @@ void NetworkServerApp::updateKnownNodes(LoRaMacFrame* pkt)
     {
         if(knownNodes[i].srcAddr == pkt->getTransmitterAddress())
         {
+            knownNodes[i].numberOfReceivedPacketsPerNode++;
             nodeExist = true;
             if(knownNodes[i].lastSeqNoProcessed < pkt->getSequenceNumber())
             {
@@ -183,6 +187,7 @@ void NetworkServerApp::updateKnownNodes(LoRaMacFrame* pkt)
         newNode.receivedSeqNumber->setName("Received Sequence number");
         newNode.calculatedSNRmargin = new cOutVector;
         newNode.calculatedSNRmargin->setName("Calculated SNRmargin in ADR");
+        newNode.numberOfReceivedPacketsPerNode = 1;
         knownNodes.push_back(newNode);
     }
 }

@@ -133,6 +133,7 @@ void LoRaMac::finish()
     recordScalar("numReceived", numReceived);
     recordScalar("numSentBroadcast", numSentBroadcast);
     recordScalar("numReceivedBroadcast", numReceivedBroadcast);
+    recordScalar("addressNode", getAddress().address);
 }
 
 InterfaceEntry *LoRaMac::createInterfaceEntry()

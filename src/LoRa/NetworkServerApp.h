@@ -39,6 +39,7 @@ public:
     int framesFromLastADRCommand;
     int lastSeqNoProcessed;
     int numberOfSentADRPackets;
+    int numberOfReceivedPacketsPerNode; // dodano za brojanje paketa koji su primljeni na GW od pojedinog čvora
     std::list<double> adrListSNIR;
     cOutVector *historyAllSNIR;
     cOutVector *historyAllRSSI;

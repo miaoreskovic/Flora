@@ -49,6 +49,8 @@ void SimpleLoRaApp::initialize(int stage)
         sendMeasurements = new cMessage("sendMeasurements");
         scheduleAt(simTime()+timeToFirstPacket, sendMeasurements);
 
+        nodeId = getIndex();
+        fullName = getFullName();
         sentPackets = 0;
         receivedADRCommands = 0;
         numberOfPacketsToSend = par("numberOfPacketsToSend");
@@ -101,6 +103,7 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
     if (msg->isSelfMessage()) {
         if (msg == sendMeasurements)
         {
+            //nodeId = getSenderModuleId();
             sendJoinRequest();
             if (simTime() >= getSimulation()->getWarmupPeriod())
                 sentPackets++;

@@ -46,6 +46,9 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         void sendJoinRequest();
         void sendDownMgmtPacket();
 
+        int nodeId;
+        const char *fullName;
+
         int numberOfPacketsToSend;
         int sentPackets;
         int receivedADRCommands;
