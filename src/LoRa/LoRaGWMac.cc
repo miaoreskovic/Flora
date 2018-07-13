@@ -91,7 +91,9 @@ void LoRaGWMac::handleUpperPacket(cPacket *msg)
         frame->removeControlInfo();
         LoRaMacControlInfo *ctrl = new LoRaMacControlInfo();
         ctrl->setSrc(address);
-        ctrl->setDest(frame->getReceiverAddress());
+        //frame->setReceiverAddress(DevAddr::BROADCAST_ADDRESS);
+        //ctrl->setDest(frame->getReceiverAddress());
+        ctrl->setDest(DevAddr::BROADCAST_ADDRESS);
         frame->setControlInfo(ctrl);
         sendDown(frame);
         waitingForDC = true;

@@ -23,6 +23,7 @@ enum AppPacketType
     JOIN_REPLY = 2;
     DATA = 3;
     TXCONFIG = 4;
+    RETRANSMIT = 5;
 }
 
 class LoRaOptions {

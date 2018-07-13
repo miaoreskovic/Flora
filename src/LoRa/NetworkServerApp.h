@@ -68,12 +68,19 @@ class INET_API NetworkServerApp : public cSimpleModule, cListener
     std::vector<receivedPacket> receivedPackets;
     int localPort = -1, destPort = -1;
     std::vector<std::tuple<DevAddr, int>> recvdPackets;
+    std::vector<L3Address> destAddresses;
+    L3Address destAddr;
     // state
     UDPSocket socket;
     cMessage *selfMsg = nullptr;
     int totalReceivedPackets;
     std::string adrMethod;
     double adrDeviceMargin;
+
+    simtime_t timeToFirstPacketGW;
+    simtime_t timeToNextPacketGW;
+    int numberOfPacketsToSendGW;
+    int sentPacketsToNodes;
 
   protected:
     virtual void initialize(int stage) override;
@@ -89,6 +96,7 @@ class INET_API NetworkServerApp : public cSimpleModule, cListener
     void processScheduledPacket(cMessage* selfMsg);
     void evaluateADR(LoRaMacFrame* pkt, L3Address pickedGateway, double SNIRinGW, double RSSIinGW);
     void receiveSignal(cComponent *source, simsignal_t signalID, long value, cObject *details) override;
+    void sendBroadcast();
     bool evaluateADRinServer;
 
     cHistogram receivedRSSI;
@@ -98,6 +106,19 @@ class INET_API NetworkServerApp : public cSimpleModule, cListener
     int counterOfSentPacketsFromNodesPerSF[6];
     int counterUniqueReceivedPackets = 0;
     int counterUniqueReceivedPacketsPerSF[6];
-};
-} //namespace inet
+
+  public:
+      //simsignal_t LoRa_AppPacketSent;
+      //LoRa physical layer parameters
+    cMessage *sendMeasurements;
+    double loRaGWTP;
+    units::values::Hz loRaGWCF;
+    int loRaGWSF;
+    units::values::Hz loRaGWBW;
+    int loRaGWCR;
+    bool loRaGWUseHeader;
+
+  };
+}
+//namespace inet
 #endif

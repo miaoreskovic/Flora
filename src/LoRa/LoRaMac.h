@@ -45,6 +45,8 @@ class LoRaMac : public MACProtocolBase
     int cwMax = -1;
     int cwMulticast = -1;
     int sequenceNumber = 0;
+    int kind;
+    double rssi;
     //@}
 
     /**
@@ -61,6 +63,9 @@ class LoRaMac : public MACProtocolBase
         WAIT_DELAY_2,
         LISTENING_2,
         RECEIVING_2,
+        PRELISTENING,
+        LISTENING,
+        RECEIVING
     };
 
     IRadio *radio = nullptr;

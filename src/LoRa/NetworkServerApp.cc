@@ -32,6 +32,7 @@ void NetworkServerApp::initialize(int stage)
         LoRa_ServerPacketReceived = registerSignal("LoRa_ServerPacketReceived");
         localPort = par("localPort");
         destPort = par("destPort");
+        //destAddr = par("destAddresses");
         adrMethod = par("adrMethod").stdstringValue();
     } else if (stage == INITSTAGE_APPLICATION_LAYER) {
         startUDP();
@@ -45,6 +46,30 @@ void NetworkServerApp::initialize(int stage)
             counterUniqueReceivedPacketsPerSF[i] = 0;
             counterOfSentPacketsFromNodesPerSF[i] = 0;
         }
+        // timeToFirstPacket
+
+        sentPacketsToNodes = 0;
+        do {
+            timeToFirstPacketGW = par("timeToFirstPacketGW");
+            EV << "Wylosowalem czas :" << timeToFirstPacketGW << endl;
+            //if(timeToNextPacket < 5) error("Time to next packet must be grater than 3");
+        } while(timeToFirstPacketGW <= 5);
+        sendMeasurements = new cMessage("sendMeasurements");
+        scheduleAt(simTime()+timeToFirstPacketGW, sendMeasurements);
+        numberOfPacketsToSendGW = par("numberOfPacketsToSendGW");
+
+        sendMeasurements = new cMessage("sendMeasurements");
+        scheduleAt(simTime()+timeToFirstPacketGW, sendMeasurements);
+
+        //LoRa physical layer parameters
+        loRaGWTP = par("initialLoRaTPGW").doubleValue();
+        loRaGWCF = units::values::Hz(par("initialLoRaCFGW").doubleValue());
+        loRaGWSF = par("initialLoRaSFGW");
+        loRaGWBW = inet::units::values::Hz(par("initialLoRaBWGW").doubleValue());
+        loRaGWCR = par("initialLoRaCRGW");
+        loRaGWUseHeader = par("initialGWUseHeader");
+
+
     }
 }
 
@@ -69,8 +94,33 @@ void NetworkServerApp::handleMessage(cMessage *msg)
         processLoraMACPacket(PK(msg));
     } else if(msg->isSelfMessage())
     {
-        processScheduledPacket(msg);
+        //processScheduledPacket(msg);
+        if (msg == sendMeasurements)
+        {
+            sendBroadcast();
+            //sendJoinRequest();
+            if (simTime() >= getSimulation()->getWarmupPeriod())
+                sentPacketsToNodes++;
+            delete msg;
+            if(numberOfPacketsToSendGW == 0 || sentPacketsToNodes < numberOfPacketsToSendGW)
+            {
+                double time;
+                if(loRaGWSF == 7) time = 7.808;
+                if(loRaGWSF == 8) time = 13.9776;
+                if(loRaGWSF == 9) time = 24.6784;
+                if(loRaGWSF == 10) time = 49.3568;
+                if(loRaGWSF == 11) time = 85.6064;
+                if(loRaGWSF == 12) time = 171.2128;
+                do {
+                    timeToNextPacketGW = par("timeToNextPacketGW");
+                    //if(timeToNextPacket < 3) error("Time to next packet must be grater than 3");
+                } while(timeToNextPacketGW <= time);
+                sendMeasurements = new cMessage("sendMeasurements");
+                scheduleAt(simTime() + timeToNextPacketGW, sendMeasurements);
+            }
+        }
     }
+
 }
 
 void NetworkServerApp::processLoraMACPacket(cPacket *pk)
@@ -87,6 +137,7 @@ void NetworkServerApp::processLoraMACPacket(cPacket *pk)
 void NetworkServerApp::finish()
 {
     recordScalar("LoRa_NS_DER", double(counterUniqueReceivedPackets)/counterOfSentPacketsFromNodes);
+    recordScalar("SendPacketsFromServerApp", int (sentPacketsToNodes));
     for(uint i=0;i<knownNodes.size();i++)
     {
         delete knownNodes[i].historyAllSNIR;
@@ -207,6 +258,7 @@ void NetworkServerApp::addPktToProcessingTable(LoRaMacFrame* pkt)
         rcvPkt.endOfWaiting = new cMessage("endOfWaitingWindow");
         rcvPkt.endOfWaiting->setContextPointer(pkt);
         rcvPkt.possibleGateways.emplace_back(cInfo->getSrcAddr(), math::fraction2dB(pkt->getSNIR()), pkt->getRSSI());
+        destAddr = cInfo->getSrcAddr();
         scheduleAt(simTime() + 1.2, rcvPkt.endOfWaiting);
         receivedPackets.push_back(rcvPkt);
     }
@@ -235,6 +287,7 @@ void NetworkServerApp::processScheduledPacket(cMessage* selfMsg)
                     RSSIinGW = std::get<2>(receivedPackets[i].possibleGateways[j]);
                     SNIRinGW = std::get<1>(receivedPackets[i].possibleGateways[j]);
                     pickedGateway = std::get<0>(receivedPackets[i].possibleGateways[j]);
+                    //destAddr = pickedGateway;
                 }
             }
         }
@@ -383,4 +436,39 @@ void NetworkServerApp::receiveSignal(cComponent *source, simsignal_t signalID, l
     }
 }
 
-} //namespace inet
+void NetworkServerApp::sendBroadcast(){
+
+    //L3Address destAddrGW = destAddr;
+    LoRaAppPacket *mgmtPacket = new LoRaAppPacket("ADRcommand");
+    mgmtPacket->setKind(DATA);
+
+    //add LoRa control info
+     LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
+     cInfo->setLoRaTP(loRaGWTP);
+     cInfo->setLoRaCF(loRaGWCF);
+     cInfo->setLoRaSF(loRaGWSF);
+     cInfo->setLoRaBW(loRaGWBW);
+     cInfo->setLoRaCR(loRaGWCR);
+
+     mgmtPacket->setControlInfo(cInfo);
+
+     LoRaMacFrame *frameToSend = new LoRaMacFrame("GatewayPacket");
+     frameToSend->encapsulate(mgmtPacket);
+     frameToSend->setReceiverAddress(DevAddr::BROADCAST_ADDRESS);
+     //FIXME: What value to set for LoRa TP
+     //frameToSend->setLoRaTP(pkt->getLoRaTP());
+     frameToSend->setLoRaTP(14);
+     frameToSend->setLoRaCF(loRaGWCF);
+     frameToSend->setLoRaSF(loRaGWSF);
+     frameToSend->setLoRaBW(loRaGWBW);
+     //frameToSend->setSequenceNumber(sequenceNumber)
+     if(simTime() >= getSimulation()->getWarmupPeriod())
+             {
+                 sentPacketsToNodes++;
+             }
+     socket.sendTo(frameToSend, destAddr, destPort);
+}
+
+
+}
+//namespace inet

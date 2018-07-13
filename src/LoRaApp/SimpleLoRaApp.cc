@@ -48,7 +48,7 @@ void SimpleLoRaApp::initialize(int stage)
         //timeToFirstPacket = par("timeToFirstPacket");
         sendMeasurements = new cMessage("sendMeasurements");
         scheduleAt(simTime()+timeToFirstPacket, sendMeasurements);
-
+        data = 0;
         sentPackets = 0;
         receivedADRCommands = 0;
         numberOfPacketsToSend = par("numberOfPacketsToSend");
@@ -94,6 +94,7 @@ void SimpleLoRaApp::finish()
     recordScalar("finalSF", loRaSF);
     recordScalar("sentPackets", sentPackets);
     recordScalar("receivedADRCommands", receivedADRCommands);
+    recordScalar("data", data);
 }
 
 void SimpleLoRaApp::handleMessage(cMessage *msg)
@@ -114,12 +115,14 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
                 if(loRaSF == 10) time = 49.3568;
                 if(loRaSF == 11) time = 85.6064;
                 if(loRaSF == 12) time = 171.2128;
+
                 do {
                     timeToNextPacket = par("timeToNextPacket");
                     //if(timeToNextPacket < 3) error("Time to next packet must be grater than 3");
                 } while(timeToNextPacket <= time);
                 sendMeasurements = new cMessage("sendMeasurements");
                 scheduleAt(simTime() + timeToNextPacket, sendMeasurements);
+
             }
         }
     }
@@ -136,6 +139,11 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
 void SimpleLoRaApp::handleMessageFromLowerLayer(cMessage *msg)
 {
     LoRaAppPacket *packet = check_and_cast<LoRaAppPacket *>(msg);
+    //messageKind kind;
+    if (packet->getKind() == 3){
+        data++;
+        //packet->get
+    }
     if (simTime() >= getSimulation()->getWarmupPeriod())
         receivedADRCommands++;
     if(evaluateADRinNode)

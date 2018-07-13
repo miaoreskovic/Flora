@@ -25,9 +25,20 @@ simple NetworkServerApp like IUDPApp
     string localAddress = default("");
     int destPort = default(-1);
     bool evaluateADRinServer = default(false);
+    string destAddr = default("");
 	
 	string adrMethod = default("max");
 	double adrDeviceMargin = default(15);
+	
+	int numberOfPacketsToSendGW = default(1);
+    volatile double timeToFirstPacketGW @unit(s) = default(10s);
+    volatile double timeToNextPacketGW @unit(s) = default(10s);
+    double initialLoRaTPGW @unit(dBm) = default(14dBm);
+    double initialLoRaCFGW @unit(Hz) = default(868MHz);
+    int initialLoRaSFGW = default(12);
+    int initialLoRaCRGW = default(4);
+    double initialLoRaBWGW @unit(Hz) = default(125kHz);
+    bool initialGWUseHeader = default(true);
 	
     gates:
     output udpOut;

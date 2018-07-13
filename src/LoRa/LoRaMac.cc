@@ -105,6 +105,8 @@ void LoRaMac::initialize(int stage)
         numReceived = 0;
         numSentBroadcast = 0;
         numReceivedBroadcast = 0;
+        kind = 0;
+        rssi = 0;
 
         // initialize watches
         WATCH(fsm);
@@ -133,6 +135,8 @@ void LoRaMac::finish()
     recordScalar("numReceived", numReceived);
     recordScalar("numSentBroadcast", numSentBroadcast);
     recordScalar("numReceivedBroadcast", numReceivedBroadcast);
+    recordScalar("RSSI", rssi);
+    recordScalar("kind", kind);
 }
 
 InterfaceEntry *LoRaMac::createInterfaceEntry()
@@ -184,8 +188,10 @@ void LoRaMac::handleUpperPacket(cPacket *msg)
 }
 
 void LoRaMac::handleLowerPacket(cPacket *msg)
-{
-    if( (fsm.getState() == RECEIVING_1) || (fsm.getState() == RECEIVING_2)) handleWithFsm(msg);
+{ 
+    if ((fsm.getState() == RECEIVING_1) || (fsm.getState() == RECEIVING_2) || (fsm.getState() == RECEIVING)){
+        handleWithFsm(msg);
+    }
     else delete msg;
 }
 
@@ -194,6 +200,8 @@ void LoRaMac::handleWithFsm(cMessage *msg)
     LoRaMacFrame *frame = dynamic_cast<LoRaMacFrame*>(msg);
     FSMA_Switch(fsm)
     {
+        ////////////  STARI IDLE
+
         FSMA_State(IDLE)
         {
             FSMA_Enter(turnOffReceiver());
@@ -202,6 +210,18 @@ void LoRaMac::handleWithFsm(cMessage *msg)
                                   TRANSMIT,
             );
         }
+
+        /*
+        FSMA_State(IDLE)
+        {
+            FSMA_Enter(turnOffReceiver());
+            FSMA_Event_Transition(Idle-Listening,
+                                  isUpperMessage(msg),
+                                  LISTENING,
+            );
+        }
+        */
+        /* STARI TRANSMIT
         FSMA_State(TRANSMIT)
         {
             FSMA_Enter(sendDataFrame(getCurrentTransmission()));
@@ -212,6 +232,19 @@ void LoRaMac::handleWithFsm(cMessage *msg)
                 numSent++;
             );
         }
+        */
+        /* novi transmit */
+        FSMA_State(TRANSMIT)
+        {
+            FSMA_Enter(sendDataFrame(getCurrentTransmission()));
+            FSMA_Event_Transition(Transmit-Prelistening,
+                                  msg == endTransmission,
+                                  PRELISTENING,
+                finishCurrentTransmission();
+                numSent++;
+            );
+        }
+
         FSMA_State(WAIT_DELAY_1)
         {
             FSMA_Enter(turnOffReceiver());
@@ -293,6 +326,41 @@ void LoRaMac::handleWithFsm(cMessage *msg)
                                   LISTENING_2,
             );
 
+        }
+        FSMA_State(PRELISTENING){
+            FSMA_Enter(turnOffReceiver());
+            FSMA_Event_Transition(Prelistening-Listening,
+                                  1 == 1,
+                                  LISTENING,
+            );
+        }
+        FSMA_State(LISTENING){
+            //FSMA_Enter(turnOffReceiver());
+            FSMA_Enter(turnOnReceiver());
+            FSMA_Event_Transition(Listening-Receiving,
+                                  msg == mediumStateChange && isReceiving(),
+                                  RECEIVING,
+            );
+            //FSMA_Event_Transition(Listening-Listening)
+        }
+        FSMA_State(RECEIVING){
+            //FSMA_Enter(turnOnReceiver())
+            FSMA_Event_Transition(Receiving-Listening,
+                                  isLowerMessage(msg) && isBroadcast(frame),
+                                  LISTENING,
+                kind = frame->getKind();
+                rssi = frame->getRSSI();
+                sendUp(decapsulate(check_and_cast<LoRaMacFrame *>(frame)));
+                numReceivedBroadcast++;
+                cancelEvent(endDelay_1);
+                cancelEvent(endListening_1);
+                cancelEvent(endDelay_2);
+                cancelEvent(endListening_2);
+            );
+            FSMA_Event_Transition(Receive-BelowSensitivity,
+                                  msg == droppedPacket,
+                                  LISTENING,
+            );
         }
     }
 }
@@ -377,10 +445,12 @@ void LoRaMac::sendAckFrame()
  */
 void LoRaMac::finishCurrentTransmission()
 {
+
     scheduleAt(simTime() + waitDelay1Time, endDelay_1);
     scheduleAt(simTime() + waitDelay1Time + listening1Time, endListening_1);
     scheduleAt(simTime() + waitDelay1Time + listening1Time + waitDelay2Time, endDelay_2);
     scheduleAt(simTime() + waitDelay1Time + listening1Time + waitDelay2Time + listening2Time, endListening_2);
+
     popTransmissionQueue();
 }
 
@@ -412,7 +482,7 @@ bool LoRaMac::isAck(LoRaMacFrame *frame)
 
 bool LoRaMac::isBroadcast(LoRaMacFrame *frame)
 {
-    return frame->getReceiverAddress().isBroadcast();
+    return frame->getReceiverAddress() == DevAddr::BROADCAST_ADDRESS;
 }
 
 bool LoRaMac::isForUs(LoRaMacFrame *frame)
