@@ -34,6 +34,12 @@ namespace inet {
 /**
  * TODO - Generated class
  */
+class receivedPacket
+{
+    public:
+        LoRaAppPacket *recPkt;
+};
+
 class receivedPacketInfo
 {
     public:
@@ -58,6 +64,7 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         void sendRetransmit(LoRaAppPacket *packetForRetransmission);
         void addPacketToSeenPackets(int sequenceNum);
         bool isPacketSeen4Times();
+        void copyAndSavePacketForRetransmit(LoRaAppPacket *packet);
 
         bool packetExists;
         int retransmissionCnt;
@@ -67,13 +74,20 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         int sentPackets;
         int receivedADRCommands;
         int lastSentMeasurement;
+        int sentRetransmits;
         simtime_t timeToFirstPacket;
         simtime_t timeToNextPacket;
+        simtime_t timeToSendRetransmit;
 
+        cMessage *sendRetransmission;
         cMessage *configureLoRaParameters;
         cMessage *sendMeasurements;
 
         std::vector<receivedPacketInfo> receivedPackets;
+        std::vector<receivedPacket> packetsForRetransmission;
+
+        LoRaAppPacket packetForRetransmission;
+        LoRaAppPacket packetForRetransmissio;
 
 
         //history of sent packets;

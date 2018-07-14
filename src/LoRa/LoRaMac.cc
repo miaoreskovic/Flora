@@ -166,11 +166,13 @@ void LoRaMac::handleSelfMessage(cMessage *msg)
 
 void LoRaMac::handleUpperPacket(cPacket *msg)
 {
+    /*
     if(fsm.getState() != IDLE)
         {
             error(fsm.getStateName());
             error("Wrong, it should not happen");
         }
+    */
     LoRaMacControlInfo *cInfo = check_and_cast<LoRaMacControlInfo *>(msg->getControlInfo());
     LoRaMacFrame *frame = encapsulate(msg);
     frame->setLoRaTP(cInfo->getLoRaTP());
@@ -178,9 +180,14 @@ void LoRaMac::handleUpperPacket(cPacket *msg)
     frame->setLoRaSF(cInfo->getLoRaSF());
     frame->setLoRaBW(cInfo->getLoRaBW());
     frame->setLoRaCR(cInfo->getLoRaCR());
-    frame->setSequenceNumber(sequenceNumber);
+    if ( fsm.getState() == IDLE){
+        frame->setSequenceNumber(sequenceNumber);
+        ++sequenceNumber;
+    }
+    else frame->setSequenceNumber(sequenceNumberForRetransmit);
+
     frame->setReceiverAddress(DevAddr::BROADCAST_ADDRESS);
-    ++sequenceNumber;
+
     frame->setLoRaUseHeader(cInfo->getLoRaUseHeader());
     EV << "frame " << frame << " received from higher layer, receiver = " << frame->getReceiverAddress() << endl;
     transmissionQueue.insert(frame);
@@ -191,14 +198,21 @@ void LoRaMac::handleLowerPacket(cPacket *msg)
 { 
     if ((fsm.getState() == RECEIVING_1) || (fsm.getState() == RECEIVING_2) || (fsm.getState() == RECEIVING)){
         handleWithFsm(msg);
-
+        lowerPacketArrived = true;
     }
     else delete msg;
+
+
 }
 
 void LoRaMac::handleWithFsm(cMessage *msg)
 {
     LoRaMacFrame *frame = dynamic_cast<LoRaMacFrame*>(msg);
+    if(lowerPacketArrived){
+        sequenceNumberForRetransmit = frame->getSequenceNumber();
+        lowerPacketArrived = false;
+    }
+
     FSMA_Switch(fsm)
     {
         ////////////  STARI IDLE
@@ -234,13 +248,21 @@ void LoRaMac::handleWithFsm(cMessage *msg)
             );
         }
         */
+        FSMA_State(PRETRANSMIT)
+        {
+            FSMA_Enter(turnOffReceiver());
+            FSMA_Event_Transition(Pretransmit-Transmit,
+                                  1 == 1,
+                                  TRANSMIT,
+            );
+        }
         /* novi transmit */
         FSMA_State(TRANSMIT)
         {
             FSMA_Enter(sendDataFrame(getCurrentTransmission()));
-            FSMA_Event_Transition(Transmit-Prelistening,
+            FSMA_Event_Transition(Transmit-Listening,
                                   msg == endTransmission,
-                                  PRELISTENING,
+                                  LISTENING,
                 finishCurrentTransmission();
                 numSent++;
             );
@@ -342,6 +364,10 @@ void LoRaMac::handleWithFsm(cMessage *msg)
                                   msg == mediumStateChange && isReceiving(),
                                   RECEIVING,
             );
+            FSMA_Event_Transition(Listening-Pretransmit,
+                                  isUpperMessage(msg),
+                                  PRETRANSMIT,
+            );
             //FSMA_Event_Transition(Listening-Listening)
         }
         FSMA_State(RECEIVING){
@@ -360,6 +386,10 @@ void LoRaMac::handleWithFsm(cMessage *msg)
             FSMA_Event_Transition(Receive-BelowSensitivity,
                                   msg == droppedPacket,
                                   LISTENING,
+            );
+            FSMA_Event_Transition(Listening-Pretransmit,
+                                  isUpperMessage(msg),
+                                  PRETRANSMIT,
             );
         }
     }

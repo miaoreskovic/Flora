@@ -47,6 +47,8 @@ class LoRaMac : public MACProtocolBase
     int sequenceNumber = 0;
     int kind;
     double rssi;
+    int sequenceNumberForRetransmit = 0;
+    bool lowerPacketArrived = false;
     //@}
 
     /**
@@ -65,7 +67,8 @@ class LoRaMac : public MACProtocolBase
         RECEIVING_2,
         PRELISTENING,
         LISTENING,
-        RECEIVING
+        RECEIVING,
+        PRETRANSMIT
     };
 
     IRadio *radio = nullptr;

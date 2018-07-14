@@ -26,6 +26,7 @@ simple SimpleLoRaApp
         int numberOfPacketsToSend = default(1);
         volatile double timeToFirstPacket @unit(s) = default(10s);
         volatile double timeToNextPacket @unit(s) = default(10s);
+        volatile double timeToSendRetransmit @unit(s) = default(10s);
         double initialLoRaTP @unit(dBm) = default(14dBm);
         double initialLoRaCF @unit(Hz) = default(868MHz);
         int initialLoRaSF = default(12);
