@@ -191,6 +191,7 @@ void LoRaMac::handleLowerPacket(cPacket *msg)
 { 
     if ((fsm.getState() == RECEIVING_1) || (fsm.getState() == RECEIVING_2) || (fsm.getState() == RECEIVING)){
         handleWithFsm(msg);
+
     }
     else delete msg;
 }
@@ -348,8 +349,7 @@ void LoRaMac::handleWithFsm(cMessage *msg)
             FSMA_Event_Transition(Receiving-Listening,
                                   isLowerMessage(msg) && isBroadcast(frame),
                                   LISTENING,
-                kind = frame->getKind();
-                rssi = frame->getRSSI();
+
                 sendUp(decapsulate(check_and_cast<LoRaMacFrame *>(frame)));
                 numReceivedBroadcast++;
                 cancelEvent(endDelay_1);

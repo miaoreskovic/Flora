@@ -48,7 +48,11 @@ void SimpleLoRaApp::initialize(int stage)
         //timeToFirstPacket = par("timeToFirstPacket");
         sendMeasurements = new cMessage("sendMeasurements");
         scheduleAt(simTime()+timeToFirstPacket, sendMeasurements);
+
+        retransmissionCnt = 0;
+        packetExists = false;
         data = 0;
+        receivedRetransmits = 0;
         sentPackets = 0;
         receivedADRCommands = 0;
         numberOfPacketsToSend = par("numberOfPacketsToSend");
@@ -95,6 +99,8 @@ void SimpleLoRaApp::finish()
     recordScalar("sentPackets", sentPackets);
     recordScalar("receivedADRCommands", receivedADRCommands);
     recordScalar("data", data);
+    recordScalar("retransmissioCount", retransmissionCnt);
+    recordScalar("retransmitsReceivedCount", receivedRetransmits);
 }
 
 void SimpleLoRaApp::handleMessage(cMessage *msg)
@@ -138,12 +144,20 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
 
 void SimpleLoRaApp::handleMessageFromLowerLayer(cMessage *msg)
 {
+    //LoRaMacFrame *frame = check_and_cast<LoRaMacFrame*>(msg);
     LoRaAppPacket *packet = check_and_cast<LoRaAppPacket *>(msg);
-    //messageKind kind;
-    if (packet->getKind() == 3){
-        data++;
-        //packet->get
+
+    //addPacketToSeenPackets(frame->getSequenceNumber());
+    if((packet->getKind() == RETRANSMIT) || (receivedRetransmits == 0)){
+        receivedRetransmits++;
+        if (!isPacketSeen4Times()) sendRetransmit(packet);
+
     }
+
+    else if (packet->getKind() == DATA){
+        data++;
+    }
+
     if (simTime() >= getSimulation()->getWarmupPeriod())
         receivedADRCommands++;
     if(evaluateADRinNode)
@@ -212,6 +226,53 @@ void SimpleLoRaApp::sendJoinRequest()
 void SimpleLoRaApp::increaseSFIfPossible()
 {
     if(loRaSF < 12) loRaSF++;
+}
+
+void SimpleLoRaApp::sendRetransmit(LoRaAppPacket *packetForRetransmission)
+{
+    LoRaAppPacket *retransmission = new LoRaAppPacket ("Retransmission");
+    retransmission->setKind(RETRANSMIT);
+    retransmission->setSampleMeasurement(packetForRetransmission->getSampleMeasurement());
+    LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
+    //LoRaMacControlInfo *cInfoTmp = new LoRaMacControlInfo;
+    //cInfoTmp = check_and_cast<LoRaMacControlInfo *> (packetForRetransmission->getOptions());
+    cInfo->setLoRaTP(packetForRetransmission->getOptions().getLoRaTP());
+    cInfo->setLoRaCF(loRaCF);
+    cInfo->setLoRaSF(packetForRetransmission->getOptions().getLoRaSF());
+    cInfo->setLoRaBW(loRaBW);
+    cInfo->setLoRaCR(packetForRetransmission->getOptions().getLoRaCR());
+
+    retransmission->setControlInfo(cInfo);
+    retransmissionCnt++;
+    send(retransmission, "appOut");
+}
+
+void SimpleLoRaApp::addPacketToSeenPackets(int sequenceNum){
+    for(uint i=0;i<receivedPackets.size();i++){
+         if(receivedPackets[i].sequenceNum == sequenceNum){
+             receivedPackets[i].retransmissionSeen++;
+             packetExists = true;
+         }
+    }
+    if (packetExists == false) {
+         receivedPacketInfo newPacket;
+         newPacket.retransmissionSeen = 0;
+         newPacket.sequenceNum = sequenceNum;
+         receivedPackets.push_back(newPacket);
+    }
+}
+
+bool SimpleLoRaApp::isPacketSeen4Times(){
+    /*for(uint i=0;i<receivedPackets.size();i++){
+         if(receivedPackets[i].retransmissionSeen == 4){
+             return true;
+         }
+    }*/
+    if (retransmissionCnt == 4) {
+        retransmissionCnt = 0;
+        return true;
+    }
+    return false;
 }
 
 } //end namespace inet

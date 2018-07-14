@@ -17,12 +17,14 @@
 #define __LORA_OMNET_SIMPLELORAAPP_H_
 
 #include <omnetpp.h>
+#include <vector>
 #include "inet/common/lifecycle/ILifecycle.h"
 #include "inet/common/lifecycle/NodeStatus.h"
 #include "inet/common/ModuleAccess.h"
 #include "inet/common/lifecycle/LifecycleOperation.h"
 
 #include "LoRaAppPacket_m.h"
+#include "LoRa/LoRaMacFrame_m.h"
 #include "LoRa/LoRaMacControlInfo_m.h"
 
 using namespace omnetpp;
@@ -32,6 +34,14 @@ namespace inet {
 /**
  * TODO - Generated class
  */
+class receivedPacketInfo
+{
+    public:
+        int retransmissionSeen;
+        int sequenceNum;
+};
+
+
 class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
 {
     protected:
@@ -45,7 +55,13 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         std::pair<double,double> generateUniformCircleCoordinates(double radius, double gatewayX, double gatewayY);
         void sendJoinRequest();
         void sendDownMgmtPacket();
+        void sendRetransmit(LoRaAppPacket *packetForRetransmission);
+        void addPacketToSeenPackets(int sequenceNum);
+        bool isPacketSeen4Times();
 
+        bool packetExists;
+        int retransmissionCnt;
+        int receivedRetransmits;
         int data;
         int numberOfPacketsToSend;
         int sentPackets;
@@ -56,6 +72,9 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
 
         cMessage *configureLoRaParameters;
         cMessage *sendMeasurements;
+
+        std::vector<receivedPacketInfo> receivedPackets;
+
 
         //history of sent packets;
         cOutVector sfVector;
