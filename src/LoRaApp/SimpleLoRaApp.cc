@@ -136,9 +136,11 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
             }
         }
         else if (msg == sendRetransmission){
-            sendRetransmit(packetsForRetransmission[0].recPkt);
-            packetsForRetransmission.clear();
 
+            send(crazy[0], "appOut");
+            //sendRetransmit(packetsForRetransmission[0].recPktNode);
+            //packetsForRetransmission.clear();
+            crazy.clear();
         }
     }
     else
@@ -171,7 +173,17 @@ void SimpleLoRaApp::handleMessageFromLowerLayer(cMessage *msg)
         retransmissionCnt = 0;
         data++;
         //LoRaAppPacket ptk = new LoRaAppPacket(packet);
-        copyAndSavePacketForRetransmit(packet);
+        LoRaAppPacket *loraPacket = new LoRaAppPacket("Retransmit");
+        LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
+        cInfo->setLoRaTP(packet->getOptions().getLoRaTP());
+        cInfo->setLoRaCF(loRaCF);
+        cInfo->setLoRaSF(packet->getOptions().getLoRaSF());
+        cInfo->setLoRaBW(loRaBW);
+        cInfo->setLoRaCR(packet->getOptions().getLoRaCR());
+        loraPacket->setControlInfo(cInfo);
+        loraPacket->setKind(RETRANSMIT);
+        crazy.push_back(loraPacket);
+        //copyAndSavePacketForRetransmit(packet);
         //packetsForRetransmission.insert(ptk);
         sendRetransmission = new cMessage("sendRetransmission");
         timeToSendRetransmit = par("timeToSendRetransmit");
@@ -250,18 +262,19 @@ void SimpleLoRaApp::increaseSFIfPossible()
 
 void SimpleLoRaApp::sendRetransmit(LoRaAppPacket *packetForRetransmission)
 {
+    LoRaAppPacket *packet = check_and_cast<LoRaAppPacket *>(packetForRetransmission);
     LoRaAppPacket *retransmission = new LoRaAppPacket ("Retransmission");
     retransmission->setKind(RETRANSMIT);
     //retransmission->setSampleMeasurement(packetsForRetransmission[0]->rcv);
-    retransmission->setSampleMeasurement(packetForRetransmission->getSampleMeasurement());
+    //retransmission->setSampleMeasurement(packetForRetransmission->getSampleMeasurement());
     LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
     //LoRaMacControlInfo *cInfoTmp = new LoRaMacControlInfo;
     //cInfoTmp = check_and_cast<LoRaMacControlInfo *> (packetForRetransmission->getOptions());
-    cInfo->setLoRaTP(packetForRetransmission->getOptions().getLoRaTP());
+    cInfo->setLoRaTP(packet->getOptions().getLoRaTP());
     cInfo->setLoRaCF(loRaCF);
-    cInfo->setLoRaSF(packetForRetransmission->getOptions().getLoRaSF());
+    cInfo->setLoRaSF(packet->getOptions().getLoRaSF());
     cInfo->setLoRaBW(loRaBW);
-    cInfo->setLoRaCR(packetForRetransmission->getOptions().getLoRaCR());
+    cInfo->setLoRaCR(packet->getOptions().getLoRaCR());
 
     retransmission->setControlInfo(cInfo);
     retransmissionCnt++;
@@ -297,9 +310,11 @@ bool SimpleLoRaApp::isPacketSeen4Times(){
 }
 
 void SimpleLoRaApp::copyAndSavePacketForRetransmit(LoRaAppPacket *packet){
-    receivedPacket rcvPkt;
+    receivedPacketNode rcvPkt;
+    LoRaAppPacket *pkt = check_and_cast<LoRaAppPacket *>(packet);
+    rcvPkt.recPktNode = pkt;
     //LoRaAppPacket *pkt = new LoRaAppPacket("Dataframe", RETRANSMIT);
-    rcvPkt.recPkt->setSampleMeasurement(packet->getSampleMeasurement());
+    //rcvPkt.recPkt->setSampleMeasurement(packet->getSampleMeasurement());
     //rcvPkt.recPkt->setSampleMeasurement(packet->getSampleMeasurement());
     LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
     //LoRaMacControlInfo *cInfoTmp = new LoRaMacControlInfo;
@@ -310,7 +325,7 @@ void SimpleLoRaApp::copyAndSavePacketForRetransmit(LoRaAppPacket *packet){
     cInfo->setLoRaBW(loRaBW);
     cInfo->setLoRaCR(packet->getOptions().getLoRaCR());
 
-    rcvPkt.recPkt->setControlInfo(cInfo);
+    //rcvPkt.recPktNode->setControlInfo(cInfo);
 
 
     packetsForRetransmission.push_back(rcvPkt);

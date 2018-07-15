@@ -34,10 +34,10 @@ namespace inet {
 /**
  * TODO - Generated class
  */
-class receivedPacket
+class receivedPacketNode
 {
     public:
-        LoRaAppPacket *recPkt;
+        LoRaAppPacket *recPktNode;
 };
 
 class receivedPacketInfo
@@ -82,9 +82,12 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         cMessage *sendRetransmission;
         cMessage *configureLoRaParameters;
         cMessage *sendMeasurements;
+        cMessage *goToIdle;
 
         std::vector<receivedPacketInfo> receivedPackets;
-        std::vector<receivedPacket> packetsForRetransmission;
+        std::vector<receivedPacketNode> packetsForRetransmission;
+
+        std::vector<LoRaAppPacket*> crazy;
 
         LoRaAppPacket packetForRetransmission;
         LoRaAppPacket packetForRetransmissio;
