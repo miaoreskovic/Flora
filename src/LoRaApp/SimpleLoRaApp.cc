@@ -49,6 +49,8 @@ void SimpleLoRaApp::initialize(int stage)
         sendMeasurements = new cMessage("sendMeasurements");
         scheduleAt(simTime()+timeToFirstPacket, sendMeasurements);
 
+        sendRetransmission = new cMessage("sendRetransmission");
+
         LoRaAppPacket packetForRetransmission;
         LoRaAppPacket packetForRetransmissio;
 
@@ -59,6 +61,7 @@ void SimpleLoRaApp::initialize(int stage)
         receivedRetransmits = 0;
         sentPackets = 0;
         receivedADRCommands = 0;
+        numberOfCanceledRetransmits = 0;
         numberOfPacketsToSend = par("numberOfPacketsToSend");
 
         LoRa_AppPacketSent = registerSignal("LoRa_AppPacketSent");
@@ -103,8 +106,11 @@ void SimpleLoRaApp::finish()
     recordScalar("sentPackets", sentPackets);
     recordScalar("receivedADRCommands", receivedADRCommands);
     recordScalar("data", data);
-    recordScalar("retransmissioCount", retransmissionCnt);
-    recordScalar("retransmitsReceivedCount", receivedRetransmits);
+    recordScalar("retransmissionCountTotal", retransmissionCnt);
+    recordScalar("receivedRetransmits", receivedRetransmits);
+    recordScalar("numberOfCanceledRetransmits", numberOfCanceledRetransmits);
+    recordScalar("sentRetransmits", sentRetransmits);
+    //recordScalar("receivedRetransmits", receivedRetransmits );
 }
 
 void SimpleLoRaApp::handleMessage(cMessage *msg)
@@ -136,8 +142,11 @@ void SimpleLoRaApp::handleMessage(cMessage *msg)
             }
         }
         else if (msg == sendRetransmission){
-
-            send(crazy[0], "appOut");
+            if (receivedRetransmits == 0){
+                sentRetransmits++;
+                send(crazy[0], "appOut");
+            }
+            else numberOfCanceledRetransmits++;
             //sendRetransmit(packetsForRetransmission[0].recPktNode);
             //packetsForRetransmission.clear();
             crazy.clear();
@@ -159,33 +168,35 @@ void SimpleLoRaApp::handleMessageFromLowerLayer(cMessage *msg)
     LoRaAppPacket *packet = check_and_cast<LoRaAppPacket *>(msg);
 
     //addPacketToSeenPackets(frame->getSequenceNumber());
-    if((packet->getKind() == RETRANSMIT)){
+    if((packet->getMsgType() != RETRANSMIT)){
         receivedRetransmits++;
-        if (!isPacketSeen4Times()) {
-            // treba staviti timeToSendRetransmit
-            cancelAndDelete(sendRetransmission);
+        retransmissionCnt++;
 
-        }
 
     }
 
-    else if (packet->getKind() == DATA){
-        retransmissionCnt = 0;
+    else if (packet->getMsgType() == RETRANSMIT){
+        //retransmissionCnt = 0;
+        receivedRetransmits = 0;
         data++;
         //LoRaAppPacket ptk = new LoRaAppPacket(packet);
-        LoRaAppPacket *loraPacket = new LoRaAppPacket("Retransmit");
+        LoRaAppPacket *loraPacket = new LoRaAppPacket("DataFrame");
+        loraPacket->setKind(DATA);
+        loraPacket->setMsgType(TXCONFIG);
         LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
         cInfo->setLoRaTP(packet->getOptions().getLoRaTP());
         cInfo->setLoRaCF(loRaCF);
         cInfo->setLoRaSF(packet->getOptions().getLoRaSF());
         cInfo->setLoRaBW(loRaBW);
         cInfo->setLoRaCR(packet->getOptions().getLoRaCR());
+
+        // cInfo->setDest(DevAddr::BROADCAST_ADDRESS);
         loraPacket->setControlInfo(cInfo);
-        loraPacket->setKind(RETRANSMIT);
+
         crazy.push_back(loraPacket);
         //copyAndSavePacketForRetransmit(packet);
         //packetsForRetransmission.insert(ptk);
-        sendRetransmission = new cMessage("sendRetransmission");
+
         timeToSendRetransmit = par("timeToSendRetransmit");
         scheduleAt(simTime()+timeToSendRetransmit, sendRetransmission);
     }

@@ -75,6 +75,7 @@ class INET_API SimpleLoRaApp : public cSimpleModule, public ILifecycle
         int receivedADRCommands;
         int lastSentMeasurement;
         int sentRetransmits;
+        int numberOfCanceledRetransmits;
         simtime_t timeToFirstPacket;
         simtime_t timeToNextPacket;
         simtime_t timeToSendRetransmit;

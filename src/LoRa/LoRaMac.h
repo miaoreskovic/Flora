@@ -115,6 +115,9 @@ class LoRaMac : public MACProtocolBase
 
     /** Radio state change self message. Currently this is optimized away and sent directly */
     cMessage *mediumStateChange = nullptr;
+
+    /**Radio state change self message*/
+    cMessage *goToIdle = nullptr;
     //@}
 
     /** @name Statistics */

@@ -81,6 +81,7 @@ class INET_API NetworkServerApp : public cSimpleModule, cListener
     simtime_t timeToNextPacketGW;
     int numberOfPacketsToSendGW;
     int sentPacketsToNodes;
+    int recRetransmission = 0;
 
   protected:
     virtual void initialize(int stage) override;

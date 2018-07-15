@@ -92,6 +92,8 @@ void NetworkServerApp::handleMessage(cMessage *msg)
         }
         updateKnownNodes(frame);
         processLoraMACPacket(PK(msg));
+
+
     } else if(msg->isSelfMessage())
     {
         //processScheduledPacket(msg);
@@ -137,6 +139,7 @@ void NetworkServerApp::processLoraMACPacket(cPacket *pk)
 void NetworkServerApp::finish()
 {
     recordScalar("LoRa_NS_DER", double(counterUniqueReceivedPackets)/counterOfSentPacketsFromNodes);
+    recordScalar("receivedRetransmission_GW", recRetransmission);
     recordScalar("SendPacketsFromServerApp", int (sentPacketsToNodes));
     for(uint i=0;i<knownNodes.size();i++)
     {
@@ -244,7 +247,8 @@ void NetworkServerApp::addPktToProcessingTable(LoRaMacFrame* pkt)
     UDPDataIndication *cInfo = check_and_cast<UDPDataIndication*>(pkt->getControlInfo());
     for(uint i=0;i<receivedPackets.size();i++)
     {
-        if(receivedPackets[i].rcvdPacket->getTransmitterAddress() == pkt->getTransmitterAddress() && receivedPackets[i].rcvdPacket->getSequenceNumber() == pkt->getSequenceNumber())
+        if(receivedPackets[i].rcvdPacket->getTransmitterAddress() == pkt->getTransmitterAddress() && receivedPackets[i].rcvdPacket->getSequenceNumber() == pkt->getSequenceNumber() &&
+                receivedPackets[i].rcvdPacket->getKind() == DATA)
         {
             packetExists = true;
             receivedPackets[i].possibleGateways.emplace_back(cInfo->getSrcAddr(), math::fraction2dB(pkt->getSNIR()), pkt->getRSSI());
@@ -440,7 +444,8 @@ void NetworkServerApp::sendBroadcast(){
 
     //L3Address destAddrGW = destAddr;
     LoRaAppPacket *mgmtPacket = new LoRaAppPacket("ADRcommand");
-    mgmtPacket->setKind(DATA);
+    mgmtPacket->setKind(RETRANSMIT);
+    mgmtPacket->setMsgType(RETRANSMIT);
 
     //add LoRa control info
      LoRaMacControlInfo *cInfo = new LoRaMacControlInfo;
